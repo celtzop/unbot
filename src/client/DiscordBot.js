@@ -8,6 +8,7 @@ const ComponentsListener = require("./handler/ComponentsListener");
 const EventsHandler = require("./handler/EventsHandler");
 const { QuickYAML } = require('quick-yaml.db');
 const noblox = require("noblox.js");
+const mongoose = require("mongoose");
 
 class DiscordBot extends Client {
     collection = {
@@ -70,6 +71,13 @@ class DiscordBot extends Client {
         this.login_timestamp = Date.now();
 
         try {
+            // Connect to MongoDB using Mongoose
+            await mongoose.connect("mongodb+srv://admin:ILoveEddieKemp12345@cluster0.vazabpu.mongodb.net/discordbot?retryWrites=true&w=majority&appName=Cluster0", {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+            });
+            success('Connected to MongoDB successfully.');
+
             await this.login(process.env.CLIENT_TOKEN);
             this.commands_handler.load();
             this.components_handler.load();

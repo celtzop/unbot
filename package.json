@@ -12,9 +12,13 @@
   "license": "GPL-3.0",
   "dependencies": {
     "colors": "^1.4.0",
+    "crypto": "^1.0.1",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
+    "mongodb": "^6.8.0",
+    "mongoose": "^8.5.3",
     "noblox.js": "^5.0.1",
-    "quick-yaml.db": "^1.2.2"
+    "quick-yaml.db": "^1.2.2",
+    "winston": "^3.14.2"
   }
 }
