@@ -20,6 +20,48 @@ const logger = winston.createLogger({
     ]
 });
 
+// Function to create standardized embeds
+function createEmbed({ title = 'No Title', description = 'No Description', color = '#ffffff', user, moderator, reason, token, actionType }) {
+    const embed = new EmbedBuilder()
+        .setTitle(title)
+        .setDescription(description)
+        .setColor(color)
+        .setThumbnail(user ? user.displayAvatarURL({ format: 'png', size: 128 }) : null)
+        .setTimestamp();
+
+    if (user) {
+        embed.addFields(
+            { name: 'User', value: `${user} (${user.id})`, inline: true }
+        );
+    }
+    
+    if (moderator) {
+        embed.addFields(
+            { name: 'Moderator', value: `${moderator} (${moderator.id})`, inline: true }
+        );
+    }
+
+    if (reason) {
+        embed.addFields(
+            { name: 'Reason', value: reason, inline: false }
+        );
+    }
+
+    if (token) {
+        embed.addFields(
+            { name: 'Token', value: token, inline: false }
+        );
+    }
+    
+    if (actionType) {
+        embed.addFields(
+            { name: 'Type', value: actionType, inline: true }
+        );
+    }
+
+    return embed;
+}
+
 module.exports = new ApplicationCommand({
     command: {
         name: 'remove',
@@ -94,36 +136,44 @@ module.exports = new ApplicationCommand({
                 return interaction.reply({ content: 'No matching action found.', ephemeral: true });
             }
 
-            // Send confirmation message
-            const embed = new EmbedBuilder()
-                .setTitle('Action Removed')
-                .setDescription(`Successfully removed the ${actionType} action from ${user}.`)
-                .setColor('#00ff00')
-                .setThumbnail(user.displayAvatarURL({ format: 'png', size: 128 })) // Adds user's profile picture as thumbnail
-                .setTimestamp();
+            // Undo the action based on type
+            if (actionType === 'Ban') {
+                // Unban the user
+                await interaction.guild.members.unban(user.id);
+            } else if (actionType === 'Mute') {
+                // Unmute the user (Remove timeout)
+                const member = await interaction.guild.members.fetch(user.id);
+                await member.timeout(null);
+            } else if (actionType === 'PressBan') {
+                // Remove pressban role
+                const member = await interaction.guild.members.fetch(user.id);
+                member.roles.remove('pressbanRoleId'); // Replace 'pressbanRoleId' with your pressban role ID
+            }
+            // Note: Kick and Warning actions do not require undoing since they do not have persistent effects
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            // Send confirmation message
+            const confirmationEmbed = new EmbedBuilder()
+                .setDescription(`## ${actionType} removed \n ${actionType} has been removed from ${user}`)
+                .setColor('#4461b8');
+            await interaction.reply({ embeds: [confirmationEmbed], ephemeral: true });
 
         } catch (error) {
             logger.error(`Error removing action: ${error.message}`);
-            await interaction.reply({ content: 'An error occurred while trying to remove the action.', ephemeral: true });
+            const errorEmbed = createEmbed({
+                title: 'Error',
+                description: `An error occurred while trying to remove the action.`,
+                color: '#ff0000'
+            });
+            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
 
- // Log the ban in the specified channel
- const logChannel = client.channels.cache.get('1275914968474189855');
- if (logChannel) {
-     const logEmbed = new EmbedBuilder()
-     .setDescription(`## ${actionType} removed from ${user}`)
-         .setThumbnail(user.displayAvatarURL({ format: 'png', size: 128 })) // Adds user's profile picture as thumbnail
-         .addFields(
-             { name: "User", value: `${user} (${user.id})`, inline: true },
-             { name: "Moderator", value: `${interaction.user.tag} (${interaction.user.id})`, inline: true },
-             { name: "Type", value: `${actionType}`, inline: true },
-         )
-         .setTimestamp();
-     await logChannel.send({ embeds: [logEmbed] });
- }
-
-
+        // Log the removal in the specified channel
+        const logChannel = client.channels.cache.get('1275914968474189855');
+        if (logChannel) {
+            const logEmbed = new EmbedBuilder()
+                .setDescription(`## ${actionType} removed from ${user}\nUser: ${user} (${user.id})\nModerator: ${interaction.user} (${interaction.user.id})\nAction: ${actionType}`)
+                .setColor('#4461b8');
+            await logChannel.send({ embeds: [logEmbed] });
+        }
     }
 }).toJSON();
